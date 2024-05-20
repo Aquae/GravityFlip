@@ -13,4 +13,4 @@ Known bugs/features:
 - Can change gravity while grappled (feature)
 - Spamming gravity flips can cause some temporary desync
 
-Source Code: https://github.com/Aquae/GravityFlip
+Source Code: https://github.com/Aquae/GravitySwap
