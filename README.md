@@ -1,4 +1,4 @@
-# GravityFlip
+# GravitySwap
 tModLoader 1.4.4.9 mod
 
 Mod intended for a painful co-op experience.
