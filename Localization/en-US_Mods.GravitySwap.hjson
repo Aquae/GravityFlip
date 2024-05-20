@@ -1,0 +1,35 @@
+Configs: {
+	Axiom: {
+		DisplayName: Server Config
+
+		Headers: {
+			Triggers: Gravity Flux Triggers
+			Theme: Theme Colors
+		}
+
+		PainFlip: {
+			Label: On Hurt
+			Tooltip: Overreact to pain
+		}
+
+		GravityJump: {
+			Label: On Jump
+			Tooltip: Do a gravity flip!
+		}
+
+		NoticeColor: {
+			Label: Notice Color
+			Tooltip: Color for notice messages
+		}
+
+		WarningColor: {
+			Label: Warning Color
+			Tooltip: Color for warning messages
+		}
+
+		PlayerColor: {
+			Label: Player Color
+			Tooltip: Color for player name highlighting
+		}
+	}
+}

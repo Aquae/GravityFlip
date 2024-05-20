@@ -1,0 +1,16 @@
+Mod intended for a painful co-op experience.
+
+Current triggers for flipping gravity are:
+Default:
+- Gravity Potion
+- Gravity Globe
+Optional:
+- Jumping
+- Receiving damage
+
+Known bugs/features:
+- Underflow error when handling packets after receiving damage (I'm baffled at this point)
+- Can change gravity while grappled (feature)
+- Spamming gravity flips can cause some temporary desync
+
+Source Code: https://github.com/Aquae/GravityFlip

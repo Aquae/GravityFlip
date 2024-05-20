@@ -1,0 +1,3 @@
+displayName = Gravity Swap
+author = Denyule
+version = 0.1
