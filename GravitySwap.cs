@@ -69,7 +69,7 @@ namespace GravitySwap
 
         public override void PostHurt(Player.HurtInfo info)
         {
-            if (config.PainFlip) { FlipGravity(); }
+            if (config.PainFlip && Main.netMode == NetmodeID.MultiplayerClient) { FlipGravity(); }
         }
 
         public override void PreUpdateMovement()
