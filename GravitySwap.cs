@@ -30,15 +30,27 @@ namespace GravitySwap
 
         public override async void OnEnterWorld()
         {
-            Sync();
-            EmitRizz();
-            
-            await Task.Delay(10);
-            Terraria.Chat.ChatHelper.SendChatMessageToClient(
-                NetworkText.FromLiteral($"[c/{config.NoticeColor}:Your mass is undergoing quantum alignment...]"),
-                Color.White,
-                Player.whoAmI
-                );
+            if (Main.netMode == NetmodeID.MultiplayerClient)
+            {
+                Sync();
+                EmitRizz();
+                
+                await Task.Delay(10);
+                Terraria.Chat.ChatHelper.SendChatMessageToClient(
+                    NetworkText.FromLiteral($"[c/{config.NoticeColor}:Your mass is undergoing quantum alignment...]"),
+                    Color.White,
+                    Player.whoAmI
+                    );
+            }
+            else if (Main.netMode == NetmodeID.SinglePlayer)
+            {
+                await Task.Delay(10);
+                Terraria.Chat.ChatHelper.SendChatMessageToClient(
+                    NetworkText.FromLiteral($"[c/{config.NoticeColor}:There is no reference plane to align your mass...]"),
+                    Color.White,
+                    Player.whoAmI
+                    );
+            }
         }
 
         public override void PlayerDisconnect()
@@ -55,18 +67,21 @@ namespace GravitySwap
 
         public override void OnRespawn()
         {
-            UpdateGravity();
+            if (Main.netMode == NetmodeID.MultiplayerClient) { UpdateGravity(); }
         }
 
         public override void ProcessTriggers(TriggersSet triggersSet)
         {
-            if (IsEntangled && triggersSet.Up && !JustPressedUp && (Player.gravControl || Player.gravControl2) && !Player.pulley)
+            if (Main.netMode == NetmodeID.MultiplayerClient)
             {
-                Player.gravDir = IsFlipped ? -1f : 1f;
-                FlipGravity();
-            }
+                if (IsEntangled && triggersSet.Up && !JustPressedUp && (Player.gravControl || Player.gravControl2) && !Player.pulley)
+                {
+                    Player.gravDir = IsFlipped ? -1f : 1f;
+                    FlipGravity();
+                }
 
-            JustPressedUp = triggersSet.Up;
+                JustPressedUp = triggersSet.Up;
+            }
         }
 
         public override void PostHurt(Player.HurtInfo info)
@@ -76,7 +91,7 @@ namespace GravitySwap
 
         public override void PreUpdateMovement()
         {
-            if (config.GravityJump && Player.justJumped && Player.whoAmI == Main.myPlayer)
+            if (config.GravityJump && Player.justJumped && Player.whoAmI == Main.myPlayer && Main.netMode == NetmodeID.MultiplayerClient)
             {
                 FlipGravity();
             }
@@ -119,11 +134,10 @@ namespace GravitySwap
 
         private void EmitRizz()
         {
-            if (Main.netMode == NetmodeID.MultiplayerClient) {
-                ModPacket packet = Mod.GetPacket();
-                packet.Write((byte) MessageType.Rizz);
-                packet.Send();
-            }
+            ModPacket packet = Mod.GetPacket();
+            packet.Write((byte) MessageType.Rizz);
+            packet.Send();
+
         }
         
         public async void Entangle(int partnerID, bool isFlipped) {
