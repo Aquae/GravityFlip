@@ -24,19 +24,21 @@ namespace GravitySwap
             get { return _partnerID; }
             set { _partnerID = value; }
         }
-        public bool IsFlipped = true;
+        public bool IsFlipped = false;
         public bool IsEntangled => PartnerID != -1 && (Main.player[PartnerID]?.active ?? false);
         private bool JustPressedUp = false;
 
-        public override void OnEnterWorld()
+        public override async void OnEnterWorld()
         {
+            Sync();
+            EmitRizz();
+            
+            await Task.Delay(10);
             Terraria.Chat.ChatHelper.SendChatMessageToClient(
                 NetworkText.FromLiteral($"[c/{config.NoticeColor}:Your mass is undergoing quantum alignment...]"),
                 Color.White,
                 Player.whoAmI
                 );
-            
-            EmitRizz();
         }
 
         public override void PlayerDisconnect()
@@ -108,6 +110,13 @@ namespace GravitySwap
             }
         }
 
+        private void Sync()
+        {
+            ModPacket packet = Mod.GetPacket();
+            packet.Write((byte) MessageType.SyncRequest);
+            packet.Send();
+        }
+
         private void EmitRizz()
         {
             if (Main.netMode == NetmodeID.MultiplayerClient) {
@@ -124,7 +133,7 @@ namespace GravitySwap
             Main.NewText($"[c/{config.WarningColor}:Prepare for gravitational desynchronisation...]");
             
             IsFlipped = isFlipped;
-            if (IsFlipped) { await Task.Delay(3000); UpdateGravity(); }
+            if (IsFlipped) { await Task.Delay(5000); UpdateGravity(); }
         }
 
         public void Decoherence()
@@ -147,6 +156,31 @@ namespace GravitySwap
 
     public class GravityLink : Mod
         {
+            private void HandleDecoherence(BinaryReader reader, int whoAmI)
+            {
+                switch (Main.netMode)
+                {
+                    case NetmodeID.Server:
+                        AlignedPlayer widow = Main.player[whoAmI].GetModPlayer<AlignedPlayer>();
+                        widow.PartnerID = -1;
+                        widow.Player.forcedGravity = 0;
+
+                        ModPacket packet = GetPacket();
+                        packet.Write((byte) MessageType.Decoherence);
+                        packet.Write((byte) whoAmI);
+                        packet.Send(-1, whoAmI);
+                        break;
+                    
+                    case NetmodeID.MultiplayerClient:
+                        int playerID = reader.ReadByte();
+                        Player player = Main.player[playerID];
+
+                        player.forcedGravity = 0;
+                        break;
+                }
+                        
+            }
+
             private void HandleFlux(BinaryReader reader, int whoAmI)
             {
                 AlignedPlayer player;
@@ -245,6 +279,62 @@ namespace GravitySwap
                 }  
             }
 
+            private void HandleSyncRequest(BinaryReader reader, int whoAmI)
+            {
+                ModPacket packet;
+                switch (Main.netMode)
+                {
+                    case NetmodeID.Server:
+                        packet = GetPacket();
+                        packet.Write((byte) MessageType.SyncRequest);
+                        packet.Write((byte) whoAmI);
+                        packet.Send(-1, whoAmI);
+                        // I decided it was too much effort to send a list of some sort containing flip states so I'll just have seperate packets from the clients
+                        // But yeah better option is for the server to respond with the data and not bother the other clients
+                        break;
+                    
+                    case NetmodeID.MultiplayerClient:
+                        packet = GetPacket();
+                        packet.Write((byte) MessageType.SyncResponse);
+                        packet.Write(reader.ReadByte()); // Player requesting sync
+                        packet.Write((byte) Main.myPlayer);
+                        packet.Write(Main.LocalPlayer.forcedGravity > 0);
+                        packet.Send();
+                        break;
+                }
+            }
+
+            private void HandleSyncResponse(BinaryReader reader, int whoAmI)
+            {
+                int playerID;
+                int responderID;
+                bool isFlipped;
+
+                switch (Main.netMode)
+                {
+                    case NetmodeID.Server:
+                        playerID = reader.ReadByte();
+                        responderID = reader.ReadByte();
+                        isFlipped = reader.ReadBoolean();
+                        
+                        ModPacket packet = GetPacket();
+                        packet.Write((byte) MessageType.SyncResponse);
+                        packet.Write((byte) responderID);
+                        packet.Write(isFlipped);
+                        packet.Send(playerID);
+                        break;
+                    
+                    case NetmodeID.MultiplayerClient:
+                        responderID = reader.ReadByte();
+                        isFlipped = reader.ReadBoolean();
+                        
+                        Player player = Main.player[responderID];
+                        player.forcedGravity = isFlipped ? int.MaxValue : 0;
+                        player.gravDir = isFlipped ? -1f : 1f;
+                        break;
+                }
+            }
+
             public override void HandlePacket(BinaryReader reader, int whoAmI)
             {
                 MessageType msgType = (MessageType) reader.ReadByte();
@@ -252,8 +342,7 @@ namespace GravitySwap
                 switch (msgType)
                 {
                     case MessageType.Decoherence:
-                        AlignedPlayer widow = Main.player[whoAmI].GetModPlayer<AlignedPlayer>();
-                        widow.PartnerID = -1;
+                        HandleDecoherence(reader, whoAmI);
                         break;
 
                     case MessageType.Flux:
@@ -262,6 +351,14 @@ namespace GravitySwap
 
                     case MessageType.Rizz:
                         HandleRizz(reader, whoAmI);
+                        break;
+                    
+                    case MessageType.SyncRequest:
+                        HandleSyncRequest(reader, whoAmI);
+                        break;
+                    
+                    case MessageType.SyncResponse:
+                        HandleSyncResponse(reader, whoAmI);
                         break;
                 }
             }
@@ -296,5 +393,7 @@ namespace GravitySwap
         Decoherence,
         Flux,
         Rizz,
+        SyncRequest,
+        SyncResponse
     }
 }
